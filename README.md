@@ -1,6 +1,6 @@
 # account-cleanup
 
-<What this project does, in one or two sentences.>
+Hilft dabei, bei vielen Webseiten, auf denen man sich mit seinen E-Mail-Adressen Konten angelegt hat, die eigenen Daten nach EU-Recht löschen zu lassen (DSGVO, vor allem Art. 17 „Recht auf Löschung“).
 
 ## Claude Code tools
 
