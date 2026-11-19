@@ -1,0 +1,5 @@
+# Git stores text files with LF line endings; Windows checkouts get CRLF automatically.
+* text=auto
+
+# Shell scripts must keep LF, or bash cannot run them.
+*.sh text eol=lf

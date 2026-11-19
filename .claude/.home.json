@@ -1,0 +1,35 @@
+{
+    "repository":  "barhnana/github-home",
+    "branch":  "main",
+    "commit":  "7d4f6268a33af8c1d987fe0c5281eb5398928e7d",
+    "skills":  [
+                   "ask-matt",
+                   "codebase-design",
+                   "diagnosing-bugs",
+                   "domain-modeling",
+                   "grilling",
+                   "grill-me",
+                   "grill-with-docs",
+                   "implement",
+                   "implement-spec",
+                   "improve-codebase-architecture",
+                   "pr",
+                   "prototype",
+                   "research",
+                   "retro",
+                   "setup-matt-pocock-skills",
+                   "tdd",
+                   "teach",
+                   "to-spec",
+                   "to-tickets",
+                   "triage",
+                   "wait-what",
+                   "wayfinder",
+                   "wizard",
+                   "writing-for-agents"
+               ],
+    "agents":  [
+                   "code-reviewer.md",
+                   "debugger.md"
+               ]
+}
