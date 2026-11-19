@@ -122,8 +122,8 @@ form button { justify-self: start; }
   border-color: var(--akzent);
 }
 
-.konten { list-style: none; margin: 0; padding: 0; }
-.konten li {
+.konten-liste { list-style: none; margin: 0; padding: 0; }
+.konten-liste li {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 4px 12px;
@@ -131,11 +131,21 @@ form button { justify-self: start; }
   padding: 12px 0;
   border-top: 1px solid var(--rand);
 }
-.konten li:first-child { border-top: 0; }
+.konten-liste li:first-child { border-top: 0; }
 .konto-name { font-weight: 600; overflow-wrap: anywhere; }
 .konto-details { color: var(--text-leise); font-size: 0.9rem; overflow-wrap: anywhere; }
 .konto-aktionen { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .konto-aktionen button { padding: 6px 12px; }
 .leer { color: var(--text-leise); }
+
+.gruppe { border: 1px solid var(--rand); border-radius: 10px; padding: 12px; margin-top: 12px; }
+.gruppe.unbekannt { border-color: var(--warnung-rand); background: var(--warnung-hg); }
+.gruppe-kopf h3 { margin: 0; font-size: 1rem; }
+.gruppe-kopf p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.marke { margin-left: 8px; font-size: 0.75rem; font-weight: normal; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--rand); color: var(--text-leise); }
+.zuordnen-form { grid-column: 1 / -1; padding: 12px; border-radius: 8px; background: var(--flaeche); border: 1px solid var(--rand); }
+.neu-felder { display: grid; gap: 12px; }
+.neu-felder[hidden] { display: none; }
+a { color: var(--akzent); }
 
 footer { padding-bottom: 32px; font-size: 0.9rem; }

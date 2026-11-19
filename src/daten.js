@@ -12,7 +12,14 @@ const SICHERUNG_KENNUNG = "account-cleanup-sicherung";
 const VERSION = 1;
 
 export function leereDaten() {
-  return { version: VERSION, nutzer: { name: "" }, konten: [], loeschantraege: [] };
+  return {
+    version: VERSION,
+    nutzer: { name: "" },
+    konten: [],
+    loeschantraege: [],
+    eigeneVerantwortliche: [],
+    zuordnungen: {},
+  };
 }
 
 function schluessel(adresse, login) {

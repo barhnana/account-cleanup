@@ -5,10 +5,15 @@ import {
   sicherungErstellen, sicherungLesen,
 } from "./daten.js";
 import { laden, speichern } from "./speicher.js";
+import {
+  alleVerantwortlichen, nachVerantwortlichemGruppieren, eigenenVerantwortlichenAnlegen,
+  adresseZuordnen, zuordnungAufheben,
+} from "./verzeichnis.js";
 
 let daten = laden();
 let filter = "alle";
 let speichernKlappt = true;
+let zuordnenOffen = null; // web address whose "Zuordnen" form is open
 
 const $ = (id) => document.getElementById(id);
 
@@ -71,19 +76,48 @@ function filterAnzeigen() {
 }
 
 function kontenAnzeigen() {
-  const liste = daten.konten
-    .filter((k) => filter === "alle" || k.zustand === filter)
-    .sort((a, b) => a.adresse.localeCompare(b.adresse) || a.login.localeCompare(b.login));
-
-  if (liste.length === 0) {
-    $("konten").replaceChildren(el("li", { klasse: "leer" },
-      daten.konten.length === 0 ? "Noch keine Konten. Importiere deine Passwort-Datei oder trag ein Konto von Hand ein." : "Keine Konten in diesem Zustand."));
+  const ziel = $("konten");
+  if (daten.konten.length === 0) {
+    ziel.replaceChildren(el("p", { klasse: "leer" }, "Noch keine Konten. Importiere deine Passwort-Datei oder trag ein Konto von Hand ein."));
     return;
   }
-  $("konten").replaceChildren(...liste.map(kontoZeile));
+  const sichtbar = (k) => filter === "alle" || k.zustand === filter;
+  const sortiert = (konten) => konten.filter(sichtbar)
+    .sort((a, b) => a.adresse.localeCompare(b.adresse) || a.login.localeCompare(b.login));
+
+  const { gruppen, unbekannt } = nachVerantwortlichemGruppieren(daten);
+  const bloecke = [];
+
+  const unbekanntSichtbar = sortiert(unbekannt);
+  if (unbekanntSichtbar.length) {
+    bloecke.push(el("div", { klasse: "gruppe unbekannt" },
+      el("div", { klasse: "gruppe-kopf" },
+        el("h3", {}, `Verantwortlicher unbekannt (${unbekanntSichtbar.length})`),
+        el("p", { klasse: "klein" }, "Diese Webseiten kennt das Verzeichnis noch nicht. Tippe auf „Zuordnen“ und wähle die Firma dahinter aus oder trag sie neu ein.")),
+      el("ul", { klasse: "konten-liste" }, unbekanntSichtbar.map((k) => kontoZeile(k, { unbekannt: true })))));
+  }
+
+  for (const { verantwortlicher: v, konten } of gruppen) {
+    const sichtbare = sortiert(konten);
+    if (!sichtbare.length) continue;
+    bloecke.push(el("div", { klasse: "gruppe" },
+      el("div", { klasse: "gruppe-kopf" },
+        el("h3", {}, v.name, v.eigen ? el("span", { klasse: "marke" }, "eigener Eintrag") : ""),
+        el("p", { klasse: "klein" }, kontaktText(v))),
+      el("ul", { klasse: "konten-liste" }, sichtbare.map((k) => kontoZeile(k)))));
+  }
+
+  ziel.replaceChildren(...(bloecke.length ? bloecke : [el("p", { klasse: "leer" }, "Keine Konten in diesem Zustand.")]));
 }
 
-function kontoZeile(konto) {
+function kontaktText(v) {
+  const teile = [];
+  if (v.email) teile.push(`Datenschutz: ${v.email}`);
+  if (v.formular) teile.push(el("a", { href: v.formular, target: "_blank", rel: "noopener noreferrer" }, "Datenschutz-Formular ↗"));
+  return teile.flatMap((t, i) => (i ? [" · ", t] : [t]));
+}
+
+function kontoZeile(konto, { unbekannt = false } = {}) {
   const auswahl = el("select", {
     "aria-label": `Zustand von ${konto.titel}`,
     onchange: (e) => aendern(kontoZustandSetzen(daten, konto.id, e.target.value)),
@@ -97,16 +131,87 @@ function kontoZeile(konto) {
   }
   auswahl.disabled = konto.zustand === "imLoeschantrag";
 
+  const eigeneZuordnung = Boolean(daten.zuordnungen?.[konto.adresse]);
+  const aktionen = [auswahl];
+  if (unbekannt) {
+    aktionen.push(el("button", {
+      type: "button",
+      onclick: () => { zuordnenOffen = zuordnenOffen === konto.adresse ? null : konto.adresse; anzeigen(); },
+    }, "Zuordnen"));
+  }
+  if (eigeneZuordnung) {
+    aktionen.push(el("button", {
+      type: "button", klasse: "zweitrangig",
+      onclick: () => aendern(zuordnungAufheben(daten, konto.adresse)),
+    }, "Zuordnung aufheben"));
+  }
+  aktionen.push(el("button", {
+    type: "button", klasse: "zweitrangig",
+    onclick: () => { if (confirm(`„${konto.titel}“ (${konto.login}) aus der Liste entfernen?`)) aendern(kontoEntfernen(daten, konto.id)); },
+  }, "Entfernen"));
+
+  const loeschLink = konto.dienst?.loeschLink && konto.zustand === "offen"
+    ? el("a", { klasse: "klein", href: konto.dienst.loeschLink, target: "_blank", rel: "noopener noreferrer" },
+      `Geht schneller: Konto direkt bei ${konto.dienst.name} löschen ↗`)
+    : "";
+
   return el("li", {},
     el("div", {},
       el("div", { klasse: "konto-name" }, konto.titel),
-      el("div", { klasse: "konto-details" }, `${konto.adresse} · ${konto.login}`)),
-    el("div", { klasse: "konto-aktionen" },
-      auswahl,
-      el("button", {
-        type: "button", klasse: "zweitrangig",
-        onclick: () => { if (confirm(`„${konto.titel}“ (${konto.login}) aus der Liste entfernen?`)) aendern(kontoEntfernen(daten, konto.id)); },
-      }, "Entfernen")));
+      el("div", { klasse: "konto-details" }, `${konto.adresse} · ${konto.login}`),
+      loeschLink),
+    el("div", { klasse: "konto-aktionen" }, aktionen),
+    unbekannt && zuordnenOffen === konto.adresse ? zuordnenFormular(konto.adresse) : "");
+}
+
+function zuordnenFormular(adresse) {
+  const auswahl = el("select", { name: "verantwortlicher", "aria-label": "Verantwortlicher" },
+    el("option", { value: "" }, "– bitte wählen –"),
+    el("option", { value: "neu" }, "Neuen Verantwortlichen eintragen …"),
+    ...alleVerantwortlichen(daten)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((v) => el("option", { value: v.id }, v.name)));
+
+  const neuFelder = el("div", { klasse: "neu-felder", hidden: "" },
+    el("p", { klasse: "klein" }, "Name und Datenschutz-Kontakt stehen in der Datenschutzerklärung der Webseite (meist ganz unten verlinkt, oft unter „Verantwortlicher“)."),
+    el("label", {}, "Name der Firma", el("input", { name: "name", autocomplete: "off" })),
+    el("label", {}, "Datenschutz-E-Mail-Adresse", el("input", { name: "email", type: "email", autocomplete: "off", autocapitalize: "off" })),
+    el("label", {}, "oder Link zum Datenschutz-Formular", el("input", { name: "formular", type: "url", autocomplete: "off", autocapitalize: "off" })),
+    el("label", {}, "Sitz der Firma",
+      el("select", { name: "land" },
+        el("option", { value: "DE" }, "Deutschland"),
+        el("option", { value: "AT" }, "Österreich"),
+        el("option", { value: "XX" }, "anderes Land"))));
+
+  auswahl.addEventListener("change", () => { neuFelder.hidden = auswahl.value !== "neu"; });
+
+  const form = el("form", {
+    klasse: "zuordnen-form",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const f = e.target.elements; // .elements, because form.name would be the form's own name
+      try {
+        let neu = daten;
+        let id = f.verantwortlicher.value;
+        if (!id) throw new Error("Bitte wähle einen Verantwortlichen aus.");
+        if (id === "neu") {
+          ({ daten: neu, id } = eigenenVerantwortlichenAnlegen(daten, {
+            name: f.name.value, email: f.email.value, formular: f.formular.value, land: f.land.value,
+          }));
+        }
+        zuordnenOffen = null;
+        aendern(adresseZuordnen(neu, adresse, id));
+      } catch (fehler) {
+        alert(fehler.message);
+      }
+    },
+  },
+  el("label", {}, `Wer steckt hinter ${adresse}?`, auswahl),
+  neuFelder,
+  el("div", { klasse: "knopfreihe" },
+    el("button", { type: "submit" }, "Speichern"),
+    el("button", { type: "button", klasse: "zweitrangig", onclick: () => { zuordnenOffen = null; anzeigen(); } }, "Abbrechen")));
+  return form;
 }
 
 // ---------- Import ----------

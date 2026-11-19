@@ -28,6 +28,14 @@ _Avoid_: Löschanfrage, Kündigung, Request
 Die mit dem Tool mitgelieferte, erweiterbare Liste bekannter Dienste mit ihrem Verantwortlichen und dessen Datenschutz-Kontakt.
 _Avoid_: Datenbank, Firmenliste, Katalog
 
+**Eigener Eintrag**:
+Ein Verantwortlicher, den der Nutzer selbst eingetragen hat, weil das Dienste-Verzeichnis ihn nicht kennt. Er gilt nur für diesen Nutzer.
+_Avoid_: benutzerdefinierter Verantwortlicher, manueller Eintrag
+
+**Zuordnung**:
+Die Festlegung des Nutzers, welcher Verantwortliche hinter einer Webseiten-Adresse steckt. Sie hat Vorrang vor dem Dienste-Verzeichnis.
+_Avoid_: Mapping, Verknüpfung
+
 **Sicherung**:
 Eine Datei auf dem Gerät des Nutzers mit allen seinen Konten und Löschanträgen, die er herunterladen und später wieder öffnen kann.
 _Avoid_: Backup, Upload, Export
