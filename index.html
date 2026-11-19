@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Account-Cleanup</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="src/app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Account-Cleanup</h1>
+    <p class="untertitel">Finde deine Konten und lass deine Daten nach DSGVO löschen.</p>
+  </header>
+
+  <main>
+    <div id="hinweise" aria-live="polite"></div>
+
+    <section>
+      <h2>Konten importieren</h2>
+      <details>
+        <summary>So bekommst du die Datei vom iPhone</summary>
+        <ol>
+          <li>Öffne die App <b>Einstellungen</b>.</li>
+          <li>Tippe auf <b>Apps</b> und dann auf <b>Safari</b>.</li>
+          <li>Tippe unter „Verlauf und Websitedaten“ auf <b>Exportieren</b>.</li>
+          <li>Wähle nur <b>Passwörter</b> aus, alles andere abwählen.</li>
+          <li>Tippe auf <b>In „Downloads“ sichern</b>.</li>
+          <li>Komm hierher zurück und tippe unten auf <b>Datei auswählen</b>. Die Datei liegt in <b>Downloads</b>.</li>
+        </ol>
+        <p class="klein">Die Datei enthält deine Passwörter unverschlüsselt. Dieses Tool liest daraus nur Titel, Webseite und Benutzername – Passwörter werden nie gespeichert und verlassen dein Gerät nicht. Lösch die Datei danach (Anleitung erscheint nach dem Import).</p>
+      </details>
+      <label class="datei-knopf">
+        Datei auswählen
+        <input type="file" id="import-datei" accept=".csv,text/csv">
+      </label>
+      <div id="import-ergebnis"></div>
+    </section>
+
+    <section>
+      <h2>Konto von Hand eintragen</h2>
+      <form id="konto-form">
+        <label>Webseite <input name="adresse" required placeholder="z. B. zalando.de" autocomplete="off" autocapitalize="off"></label>
+        <label>E-Mail-Adresse oder Benutzername <input name="login" required autocomplete="off" autocapitalize="off"></label>
+        <label>Name (optional) <input name="titel" placeholder="z. B. Zalando" autocomplete="off"></label>
+        <button type="submit">Hinzufügen</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Deine Konten</h2>
+      <div id="filter" class="filter" role="group" aria-label="Konten filtern"></div>
+      <ul id="konten" class="konten"></ul>
+    </section>
+
+    <section>
+      <h2>Sicherung</h2>
+      <p class="klein">Deine Daten liegen nur in diesem Browser. Wenn du die Browserdaten löschst oder das Gerät wechselst, sind sie weg. Speichere deshalb regelmäßig eine Sicherung. Mit „Sicherung öffnen“ holst du sie zurück – auch auf einem anderen Gerät. Die Sicherung enthält keine Passwörter.</p>
+      <div class="knopfreihe">
+        <button type="button" id="sicherung-speichern">Sicherung speichern</button>
+        <label class="datei-knopf zweitrangig">
+          Sicherung öffnen
+          <input type="file" id="sicherung-oeffnen" accept=".json,application/json">
+        </label>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Alle Daten bleiben auf diesem Gerät. Nichts wird ins Internet geschickt.</p>
+    <p>Dieses Tool ersetzt keine Rechtsberatung.</p>
+  </footer>
+</body>
+</html>
