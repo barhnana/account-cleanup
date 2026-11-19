@@ -22,3 +22,7 @@ Thumbs.db
 
 # Claude Code: personal local settings
 .claude/settings.local.json
+
+# Private data: password-manager exports and backups must never be committed
+*.csv
+account-cleanup-sicherung*.json
