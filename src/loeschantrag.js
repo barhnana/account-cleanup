@@ -253,6 +253,30 @@ export function mailtoLink(email, betreff, text) {
   return `mailto:${encodeURIComponent(email).replace(/%40/g, "@")}?subject=${encodeURIComponent(betreff)}&body=${encodeURIComponent(text.replace(/\n/g, "\r\n"))}`;
 }
 
+/**
+ * Opens a new, filled-in Gmail message in the browser. If the sender is a Gmail address,
+ * authuser makes Gmail pick that account when several are signed in.
+ */
+export function gmailLink(email, betreff, text, absender = "") {
+  const p = new URLSearchParams({ view: "cm", fs: "1", to: email, su: betreff, body: text });
+  if (/@(gmail|googlemail)\.com$/i.test(absender)) p.set("authuser", absender);
+  return `https://mail.google.com/mail/?${p}`;
+}
+
+/** Opens Google Calendar with an all-day event on the Frist, ready to save. */
+export function googleKalenderLink(antrag, verantwortlicherName) {
+  const [j, m, t] = antrag.frist.split("-").map(Number);
+  const start = antrag.frist.replace(/-/g, "");
+  const ende = new Date(Date.UTC(j, m - 1, t + 1)).toISOString().slice(0, 10).replace(/-/g, "");
+  const p = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `Frist Löschantrag: ${verantwortlicherName}`,
+    dates: `${start}/${ende}`,
+    details: `Heute endet die Frist für deinen Löschantrag an ${verantwortlicherName}. Noch keine Antwort? Öffne Account-Cleanup.`,
+  });
+  return `https://calendar.google.com/calendar/render?${p}`;
+}
+
 /** A calendar file (.ics) with an all-day event on the Frist and a reminder the day before. */
 export function kalenderEintrag(antrag, verantwortlicherName, jetzt = new Date()) {
   const tag = antrag.frist.replace(/-/g, "");

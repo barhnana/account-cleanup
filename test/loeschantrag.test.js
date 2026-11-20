@@ -4,8 +4,25 @@ import { leereDaten, kontenHinzufuegen, kontoZustandSetzen, nutzerNameSetzen } f
 import {
   sprache, monateSpaeter, vorgeschlagenerAbsender, effektiverZustand, antragErstellen,
   entwurfVerwerfen, alsGesendet, rueckfrageErhalten, rueckfrageBeantwortet, fristVerlaengern,
-  abschliessen, antragText, mailtoLink, kalenderEintrag,
+  abschliessen, antragText, mailtoLink, kalenderEintrag, gmailLink, googleKalenderLink,
 } from "../src/loeschantrag.js";
+
+test("Gmail-Link: Empfänger, Betreff und Text ausgefüllt; Konto nur bei Gmail-Absender gewählt", () => {
+  const url = new URL(gmailLink("privacy@example.org", "Betreff & mehr", "Zeile 1\nZeile 2", "max@gmail.com"));
+  assert.equal(url.origin + url.pathname, "https://mail.google.com/mail/");
+  assert.equal(url.searchParams.get("view"), "cm");
+  assert.equal(url.searchParams.get("to"), "privacy@example.org");
+  assert.equal(url.searchParams.get("su"), "Betreff & mehr");
+  assert.equal(url.searchParams.get("body"), "Zeile 1\nZeile 2");
+  assert.equal(url.searchParams.get("authuser"), "max@gmail.com");
+  assert.equal(new URL(gmailLink("p@example.org", "b", "t", "max@gmx.de")).searchParams.get("authuser"), null);
+});
+
+test("Google-Kalender-Link: ganztägiger Termin am Fristtag", () => {
+  const url = new URL(googleKalenderLink({ frist: "2026-12-31" }, "Zal SE"));
+  assert.equal(url.searchParams.get("dates"), "20261231/20270101");
+  assert.equal(url.searchParams.get("text"), "Frist Löschantrag: Zal SE");
+});
 
 const V = {
   verantwortliche: [

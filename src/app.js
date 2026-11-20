@@ -7,7 +7,7 @@ import {
 import {
   ANTRAG_ZUSTAENDE, heute, datumAnzeigen, effektiverZustand, antragErstellen, entwurfVerwerfen,
   absenderSetzen, alsGesendet, rueckfrageErhalten, rueckfrageBeantwortet, fristVerlaengern,
-  abschliessen, antragText, mailtoLink, kalenderEintrag, monateSpaeter,
+  abschliessen, antragText, mailtoLink, kalenderEintrag, monateSpaeter, gmailLink, googleKalenderLink,
 } from "./loeschantrag.js";
 import { laden, speichern } from "./speicher.js";
 import {
@@ -335,7 +335,8 @@ function antragKarte(antrag, tag) {
   } else {
     if (zustand === "gesendet" || zustand === "ueberfaellig") {
       teile.push(el("div", { klasse: "knopfreihe" },
-        el("button", { type: "button", klasse: "zweitrangig", onclick: () => datei(kalenderEintrag(antrag, name), "text/calendar", `frist-${name.replace(/[^\wäöüÄÖÜß-]+/g, "-")}.ics`) }, "In Kalender eintragen")));
+        el("a", { klasse: "knopf zweitrangig", href: googleKalenderLink(antrag, name), target: "_blank", rel: "noopener noreferrer" }, "In Google Kalender eintragen ↗"),
+        el("button", { type: "button", klasse: "zweitrangig", onclick: () => datei(kalenderEintrag(antrag, name), "text/calendar", `frist-${name.replace(/[^\wäöüÄÖÜß-]+/g, "-")}.ics`) }, "Kalenderdatei (iPhone, Outlook)")));
       if (zustand === "ueberfaellig") {
         teile.push(meldung("fehler", el("p", {}, "Die Frist ist abgelaufen. Du kannst nachhaken oder dich bei der Datenschutz-Aufsichtsbehörde beschweren. Eine fertige Erinnerungs-Mail kommt in Version 2.")));
       }
@@ -390,7 +391,11 @@ function entwurfTeile(antrag, t, konten) {
   teile.push(kopierFeld("Betreff", t.betreff), kopierFeld("Text", t.text, { mehrzeilig: true }));
 
   const knoepfe = [];
-  if (t.email) knoepfe.push(el("a", { klasse: "knopf", href: mailtoLink(t.email, t.betreff, t.text) }, "In E-Mail-Programm öffnen"));
+  if (t.email) {
+    knoepfe.push(
+      el("a", { klasse: "knopf", href: gmailLink(t.email, t.betreff, t.text, antrag.absender), target: "_blank", rel: "noopener noreferrer" }, "In Gmail öffnen ↗"),
+      el("a", { klasse: "knopf zweitrangig", href: mailtoLink(t.email, t.betreff, t.text) }, "In E-Mail-Programm öffnen"));
+  }
   if (t.formular) knoepfe.push(el("a", { klasse: t.email ? "knopf zweitrangig" : "knopf", href: t.formular, target: "_blank", rel: "noopener noreferrer" }, "Formular öffnen ↗"));
   teile.push(el("div", { klasse: "knopfreihe" }, knoepfe));
 
@@ -435,9 +440,14 @@ async function dateiImportieren(e) {
         (uebersprungen ? ` ${uebersprungen} Einträge ohne Webseite oder Benutzername übersprungen (z. B. WLAN).` : ""))),
       meldung("warnung",
         el("p", {}, el("b", {}, "Jetzt die Passwort-Datei löschen – zweimal:")),
+        el("p", {}, "Am iPhone:"),
         el("ol", {},
           el("li", {}, "Öffne die App „Dateien“ → „Downloads“, halte den Finger auf die Datei und tippe auf „Löschen“."),
-          el("li", {}, "Geh in „Dateien“ zu „Zuletzt gelöscht“, halte den Finger auf die Datei und tippe auf „Sofort löschen“. Sonst bleibt sie dort noch 30 Tage liegen."))),
+          el("li", {}, "Geh in „Dateien“ zu „Zuletzt gelöscht“, halte den Finger auf die Datei und tippe auf „Sofort löschen“. Sonst bleibt sie dort noch 30 Tage liegen.")),
+        el("p", {}, "Am Windows-Laptop:"),
+        el("ol", {},
+          el("li", {}, "Datei löschen (Rechtsklick → Löschen)."),
+          el("li", {}, "Papierkorb auf dem Desktop: Rechtsklick → „Papierkorb leeren“."))),
       meldung("warnung",
         el("p", {}, el("b", {}, "Nicht alle Konten stehen in der Datei.")),
         el("p", {}, "Konten, bei denen du dich mit „Mit Apple anmelden“, „Mit Google anmelden“ oder „Mit Facebook anmelden“ registriert hast, haben kein Passwort und fehlen deshalb. Trag sie oben von Hand ein. Du findest sie hier:"),
