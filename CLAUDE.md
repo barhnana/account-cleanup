@@ -17,7 +17,7 @@ Open `index.html` in a browser via a local web server (ES modules don't load fro
 node serve.mjs
 ```
 Then open http://localhost:8000.
-Later it is published with GitHub Pages.
+Published with GitHub Pages from `main` (repo is public): https://barhnana.github.io/account-cleanup/ — every push to `main` goes live, so only push tested code.
 
 ## How to test it
 ```
