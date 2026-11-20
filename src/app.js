@@ -2,8 +2,13 @@
 import { importiereExport, webAdresse } from "./import.js";
 import {
   KONTO_ZUSTAENDE, kontenHinzufuegen, kontoZustandSetzen, kontoEntfernen,
-  sicherungErstellen, sicherungLesen,
+  sicherungErstellen, sicherungLesen, nutzerNameSetzen,
 } from "./daten.js";
+import {
+  ANTRAG_ZUSTAENDE, heute, datumAnzeigen, effektiverZustand, antragErstellen, entwurfVerwerfen,
+  absenderSetzen, alsGesendet, rueckfrageErhalten, rueckfrageBeantwortet, fristVerlaengern,
+  abschliessen, antragText, mailtoLink, kalenderEintrag, monateSpaeter,
+} from "./loeschantrag.js";
 import { laden, speichern } from "./speicher.js";
 import {
   alleVerantwortlichen, nachVerantwortlichemGruppieren, eigenenVerantwortlichenAnlegen,
@@ -45,6 +50,17 @@ function anzeigen() {
   hinweiseAnzeigen();
   filterAnzeigen();
   kontenAnzeigen();
+  antraegeAnzeigen();
+}
+
+function datei(inhalt, typ, name) {
+  const link = el("a", { href: URL.createObjectURL(new Blob([inhalt], { type: typ })), download: name });
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+}
+
+function verantwortlicherName(antrag) {
+  return alleVerantwortlichen(daten).find((v) => v.id === antrag.verantwortlicherId)?.name ?? "Unbekannt";
 }
 
 function hinweiseAnzeigen() {
@@ -52,6 +68,20 @@ function hinweiseAnzeigen() {
   ziel.replaceChildren();
   if (!speichernKlappt) {
     ziel.append(meldung("fehler", el("p", {}, "Dein Browser erlaubt dieser Seite nicht, Daten zu speichern (z. B. im privaten Modus). Deine Änderungen gehen beim Schließen verloren – speichere eine Sicherung.")));
+  }
+  const tag = heute();
+  const bald = datumPlusTage(tag, 7);
+  const ueberfaellig = daten.loeschantraege.filter((a) => effektiverZustand(a, tag) === "ueberfaellig");
+  const faellig = daten.loeschantraege.filter((a) => effektiverZustand(a, tag) === "gesendet" && a.frist <= bald);
+  if (ueberfaellig.length) {
+    ziel.append(meldung("fehler",
+      el("p", {}, el("b", {}, `Überfällig (${ueberfaellig.length}): `), "Diese Verantwortlichen haben nicht rechtzeitig geantwortet."),
+      el("ul", {}, ueberfaellig.map((a) => el("li", {}, `${verantwortlicherName(a)} – Frist war der ${datumAnzeigen(a.frist)}`)))));
+  }
+  if (faellig.length) {
+    ziel.append(meldung("warnung",
+      el("p", {}, el("b", {}, `Frist endet bald (${faellig.length}):`)),
+      el("ul", {}, faellig.map((a) => el("li", {}, `${verantwortlicherName(a)} – bis ${datumAnzeigen(a.frist)}`)))));
   }
   const ungesichert = daten.konten.length > 0 &&
     (!daten.zuletztGesichert || daten.zuletztGeaendert > daten.zuletztGesichert);
@@ -100,10 +130,15 @@ function kontenAnzeigen() {
   for (const { verantwortlicher: v, konten } of gruppen) {
     const sichtbare = sortiert(konten);
     if (!sichtbare.length) continue;
+    const offene = konten.filter((k) => k.zustand === "offen");
     bloecke.push(el("div", { klasse: "gruppe" },
       el("div", { klasse: "gruppe-kopf" },
         el("h3", {}, v.name, v.eigen ? el("span", { klasse: "marke" }, "eigener Eintrag") : ""),
-        el("p", { klasse: "klein" }, kontaktText(v))),
+        el("p", { klasse: "klein" }, kontaktText(v)),
+        offene.length
+          ? el("button", { type: "button", klasse: "antrag-knopf", onclick: () => antragAnlegen(v, offene) },
+            `Löschantrag erstellen (${offene.length} ${offene.length === 1 ? "offenes Konto" : "offene Konten"})`)
+          : ""),
       el("ul", { klasse: "konten-liste" }, sichtbare.map((k) => kontoZeile(k)))));
   }
 
@@ -214,6 +249,174 @@ function zuordnenFormular(adresse) {
   return form;
 }
 
+// ---------- Löschanträge ----------
+
+function datumPlusTage(datum, tage) {
+  const [j, m, t] = datum.split("-").map(Number);
+  return new Date(Date.UTC(j, m - 1, t + tage)).toISOString().slice(0, 10);
+}
+
+function antragAnlegen(verantwortlicher, offene) {
+  const liste = offene.map((k) => `• ${k.titel} (${k.login})`).join("\n");
+  if (!confirm(`Löschantrag an ${verantwortlicher.name} für diese Konten erstellen?\n\n${liste}\n\nKonten, die du behalten willst, vorher auf „Behalten“ stellen.`)) return;
+  const { daten: neu, id } = antragErstellen(daten, verantwortlicher.id, offene.map((k) => k.id), heute());
+  aendern(neu);
+  document.getElementById(`antrag-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function kopieren(text, knopf) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const feld = el("textarea", {}, text);
+    document.body.append(feld);
+    feld.select();
+    document.execCommand("copy");
+    feld.remove();
+  }
+  const vorher = knopf.textContent;
+  knopf.textContent = "Kopiert ✓";
+  setTimeout(() => { knopf.textContent = vorher; }, 1500);
+}
+
+function kopierFeld(beschriftung, wert, { mehrzeilig = false } = {}) {
+  const feld = mehrzeilig
+    ? el("textarea", { readonly: "", rows: "12" }, wert)
+    : el("input", { readonly: "", value: wert });
+  return el("div", { klasse: "kopier-feld" },
+    el("div", { klasse: "kopier-kopf" },
+      el("span", {}, beschriftung),
+      el("button", { type: "button", klasse: "zweitrangig", onclick: (e) => kopieren(wert, e.currentTarget) }, "Kopieren")),
+    feld);
+}
+
+/** A date field (default today) plus a button that runs aktion(datum). */
+function datumAktion(beschriftung, aktion, { klasse = "" } = {}) {
+  const feld = el("input", { type: "date", value: heute(), "aria-label": `Datum für „${beschriftung}“` });
+  return el("div", { klasse: "datum-aktion" }, feld,
+    el("button", {
+      type: "button", klasse,
+      onclick: () => {
+        try { aendern(aktion(feld.value || heute())); } catch (fehler) { alert(fehler.message); }
+      },
+    }, beschriftung));
+}
+
+function antraegeAnzeigen() {
+  $("nutzer-name").value = daten.nutzer?.name ?? "";
+  const tag = heute();
+  const reihenfolge = ["ueberfaellig", "rueckfrage", "entwurf", "gesendet", "erledigt", "abgelehnt"];
+  const antraege = [...daten.loeschantraege].sort((a, b) =>
+    reihenfolge.indexOf(effektiverZustand(a, tag)) - reihenfolge.indexOf(effektiverZustand(b, tag)));
+  $("antraege").replaceChildren(...(antraege.length
+    ? antraege.map((a) => antragKarte(a, tag))
+    : [el("p", { klasse: "leer" }, "Noch keine Löschanträge. Du erstellst sie oben bei „Deine Konten“ – pro Verantwortlichem ein Antrag.")]));
+}
+
+function antragKarte(antrag, tag) {
+  const zustand = effektiverZustand(antrag, tag);
+  const t = antragText(antrag, daten);
+  const name = t.verantwortlicher?.name ?? "Unbekannt";
+  const konten = daten.konten.filter((k) => antrag.kontoIds.includes(k.id));
+
+  const kopf = el("div", { klasse: "antrag-kopf" },
+    el("h3", {}, name),
+    el("span", { klasse: `zustand zustand-${zustand}` }, ANTRAG_ZUSTAENDE[zustand]));
+
+  const info = el("p", { klasse: "klein" },
+    `${konten.length} ${konten.length === 1 ? "Konto" : "Konten"} · ${t.sprache === "de" ? "Deutsch" : "Englisch"}`,
+    antrag.gesendetAm ? ` · gesendet am ${datumAnzeigen(antrag.gesendetAm)}` : "",
+    antrag.frist && ["gesendet", "ueberfaellig", "rueckfrage"].includes(zustand) ? ` · Frist: ${datumAnzeigen(antrag.frist)}` : "");
+
+  const teile = [kopf, info];
+
+  if (zustand === "entwurf") {
+    teile.push(...entwurfTeile(antrag, t, konten));
+  } else {
+    if (zustand === "gesendet" || zustand === "ueberfaellig") {
+      teile.push(el("div", { klasse: "knopfreihe" },
+        el("button", { type: "button", klasse: "zweitrangig", onclick: () => datei(kalenderEintrag(antrag, name), "text/calendar", `frist-${name.replace(/[^\wäöüÄÖÜß-]+/g, "-")}.ics`) }, "In Kalender eintragen")));
+      if (zustand === "ueberfaellig") {
+        teile.push(meldung("fehler", el("p", {}, "Die Frist ist abgelaufen. Du kannst nachhaken oder dich bei der Datenschutz-Aufsichtsbehörde beschweren. Eine fertige Erinnerungs-Mail kommt in Version 2.")));
+      }
+      teile.push(el("p", { klasse: "klein" }, "Antwort bekommen? Trag sie hier ein:"),
+        el("div", { klasse: "aktionen-raster" },
+          datumAktion("Erledigt", (d) => abschliessen(daten, antrag.id, "erledigt", d)),
+          datumAktion("Rückfrage erhalten", (d) => rueckfrageErhalten(daten, antrag.id, d), { klasse: "zweitrangig" }),
+          datumAktion("Abgelehnt", (d) => abschliessen(daten, antrag.id, "abgelehnt", d), { klasse: "zweitrangig" })),
+        verlaengernTeil(antrag));
+    }
+    if (zustand === "rueckfrage") {
+      teile.push(el("p", { klasse: "klein" }, "Der Verantwortliche will mehr wissen (z. B. einen Identitätsnachweis). Entscheide selbst, was du schickst – gib nicht mehr preis als nötig. Wenn du geantwortet hast, beginnt die Frist neu (ein Monat)."),
+        el("div", { klasse: "aktionen-raster" },
+          datumAktion("Rückfrage beantwortet", (d) => rueckfrageBeantwortet(daten, antrag.id, d)),
+          datumAktion("Erledigt", (d) => abschliessen(daten, antrag.id, "erledigt", d), { klasse: "zweitrangig" }),
+          datumAktion("Abgelehnt", (d) => abschliessen(daten, antrag.id, "abgelehnt", d), { klasse: "zweitrangig" })));
+    }
+    if (zustand === "abgelehnt") {
+      teile.push(el("p", { klasse: "klein" }, "Wenn du die Ablehnung für unberechtigt hältst, kannst du dich bei der Datenschutz-Aufsichtsbehörde beschweren."));
+    }
+    teile.push(el("details", {},
+      el("summary", {}, "Gesendeten Text und Verlauf anzeigen"),
+      kopierFeld("Betreff", t.betreff),
+      kopierFeld("Text", t.text, { mehrzeilig: true }),
+      el("ul", { klasse: "verlauf" }, (antrag.verlauf ?? []).map((v) => el("li", {}, `${datumAnzeigen(v.datum)}: ${v.ereignis}`)))));
+  }
+  return el("div", { klasse: `antrag antrag-${zustand}`, id: `antrag-${antrag.id}` }, teile);
+}
+
+function entwurfTeile(antrag, t, konten) {
+  const teile = [];
+  const adressen = [...new Set(konten.map((k) => k.login.toLowerCase()).filter((l) => l.includes("@")))];
+
+  if (!daten.nutzer?.name?.trim()) {
+    teile.push(meldung("warnung", el("p", {}, "Trag unten bei „Dein Name“ deinen Namen ein – er steht im Antrag.")));
+  }
+  if (adressen.length > 1) {
+    const auswahl = el("select", { onchange: (e) => aendern(absenderSetzen(daten, antrag.id, e.target.value)) },
+      adressen.map((a) => { const o = el("option", { value: a }, a); o.selected = a === antrag.absender; return o; }));
+    teile.push(el("label", {}, "Abschicken von dieser Adresse:", auswahl),
+      el("p", { klasse: "klein" }, "Der Verantwortliche kann so leichter prüfen, dass die Konten dir gehören. Die anderen Adressen stehen im Text."));
+  } else if (antrag.absender) {
+    teile.push(el("p", { klasse: "klein" }, `Schick den Antrag von ${antrag.absender} ab – mit dieser Adresse sind die Konten angelegt.`));
+  }
+
+  if (t.email) {
+    teile.push(kopierFeld("Empfänger", t.email));
+  } else if (t.formular) {
+    teile.push(el("p", {}, "Dieser Verantwortliche nimmt Anträge nur über ein Formular an. Öffne es und kopiere Betreff und Text hinein.",
+      t.formular && antrag.absender ? ` Als E-Mail-Adresse im Formular: ${antrag.absender}.` : ""));
+  }
+  teile.push(kopierFeld("Betreff", t.betreff), kopierFeld("Text", t.text, { mehrzeilig: true }));
+
+  const knoepfe = [];
+  if (t.email) knoepfe.push(el("a", { klasse: "knopf", href: mailtoLink(t.email, t.betreff, t.text) }, "In E-Mail-Programm öffnen"));
+  if (t.formular) knoepfe.push(el("a", { klasse: t.email ? "knopf zweitrangig" : "knopf", href: t.formular, target: "_blank", rel: "noopener noreferrer" }, "Formular öffnen ↗"));
+  teile.push(el("div", { klasse: "knopfreihe" }, knoepfe));
+
+  teile.push(el("p", { klasse: "klein" }, "Abgeschickt? Dann markiere ihn als gesendet – ab dann läuft die Frist von einem Monat."),
+    el("div", { klasse: "aktionen-raster" },
+      datumAktion("Als gesendet markieren", (d) => alsGesendet(daten, antrag.id, d))),
+    el("div", { klasse: "knopfreihe" },
+      el("button", {
+        type: "button", klasse: "zweitrangig",
+        onclick: () => { if (confirm("Entwurf verwerfen? Die Konten werden wieder auf „Offen“ gesetzt.")) aendern(entwurfVerwerfen(daten, antrag.id)); },
+      }, "Entwurf verwerfen")));
+  return teile;
+}
+
+function verlaengernTeil(antrag) {
+  const feld = el("input", { type: "date", value: antrag.frist, max: monateSpaeter(antrag.gesendetAm, 3), "aria-label": "Neue Frist" });
+  return el("details", {},
+    el("summary", {}, "Der Verantwortliche hat die Frist verlängert"),
+    el("p", { klasse: "klein" }, "Das ist erlaubt, wenn er es begründet – höchstens auf drei Monate ab dem Senden."),
+    el("div", { klasse: "datum-aktion" }, feld,
+      el("button", {
+        type: "button",
+        onclick: () => { try { aendern(fristVerlaengern(daten, antrag.id, feld.value, heute())); } catch (f) { alert(f.message); } },
+      }, "Neue Frist speichern")));
+}
+
 // ---------- Import ----------
 
 async function dateiImportieren(e) {
@@ -300,4 +503,5 @@ $("import-datei").addEventListener("change", dateiImportieren);
 $("konto-form").addEventListener("submit", kontoVonHand);
 $("sicherung-speichern").addEventListener("click", sicherungSpeichern);
 $("sicherung-oeffnen").addEventListener("change", sicherungOeffnen);
+$("nutzer-name").addEventListener("change", (e) => aendern(nutzerNameSetzen(daten, e.target.value)));
 anzeigen();

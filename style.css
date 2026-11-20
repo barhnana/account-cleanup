@@ -149,3 +149,36 @@ form button { justify-self: start; }
 a { color: var(--akzent); }
 
 footer { padding-bottom: 32px; font-size: 0.9rem; }
+
+/* Löschanträge */
+.antrag-knopf { margin-top: 8px; padding: 8px 14px; }
+.antrag { border: 1px solid var(--rand); border-radius: 10px; padding: 12px; margin-bottom: 12px; display: grid; gap: 10px; }
+.antrag-ueberfaellig { border-color: var(--fehler-rand); }
+.antrag-kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.antrag-kopf h3 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.antrag p { margin: 0; }
+.zustand { font-size: 0.8rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--rand); white-space: nowrap; }
+.zustand-entwurf { color: var(--text-leise); }
+.zustand-gesendet { border-color: var(--akzent); color: var(--akzent); }
+.zustand-rueckfrage { background: var(--warnung-hg); border-color: var(--warnung-rand); }
+.zustand-erledigt { background: var(--erfolg-hg); border-color: var(--erfolg-rand); }
+.zustand-abgelehnt, .zustand-ueberfaellig { background: var(--fehler-hg); border-color: var(--fehler-rand); }
+.kopier-feld { display: grid; gap: 4px; }
+.kopier-kopf { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: var(--text-leise); }
+.kopier-kopf button { padding: 4px 12px; font-size: 0.9rem; }
+textarea {
+  font: inherit; font-size: 0.9rem; padding: 10px; border-radius: 8px; width: 100%;
+  border: 1px solid var(--rand); background: var(--hintergrund); color: var(--text); resize: vertical;
+}
+.kopier-feld input { width: 100%; }
+a.knopf {
+  display: inline-block; text-decoration: none; padding: 10px 16px; border-radius: 8px;
+  border: 1px solid var(--akzent); background: var(--akzent); color: var(--akzent-text);
+}
+a.knopf.zweitrangig { background: transparent; color: var(--akzent); }
+.aktionen-raster { display: grid; gap: 8px; }
+.datum-aktion { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.datum-aktion input { flex: 0 1 11rem; }
+.verlauf { margin: 8px 0 0; padding-left: 1.2rem; font-size: 0.9rem; color: var(--text-leise); }
+.name-feld { margin-top: 12px; }
+details > .kopier-feld { margin-top: 8px; }
